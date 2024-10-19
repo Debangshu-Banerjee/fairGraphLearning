@@ -11,7 +11,7 @@ class GraphDataset:
         prefix_sensitive_attr = "no" if configs["no_sensitive_attribute"] else "with"
 
         # get file path
-        file_path = "../data/clean/{name}/{name}_{prefix_sensitive_attr}_sensitive_attr.pt".format(
+        file_path = "../dataset/clean/{name}/{name}_{prefix_sensitive_attr}_sensitive_attr.pt".format(
             name=configs["name"], prefix_sensitive_attr=prefix_sensitive_attr
         )
 

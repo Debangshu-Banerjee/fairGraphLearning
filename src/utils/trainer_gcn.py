@@ -395,7 +395,7 @@ class GCNTrainer:
         # load vanilla data
         file_path = os.path.join(
             "..",
-            "data",
+            "dataset",
             "clean",
             self.dataset_configs["name"],
             "{name}_{prefix_sensitive_attr}_sensitive_attr.pt".format(
@@ -420,7 +420,7 @@ class GCNTrainer:
 
         folder_path = os.path.join(
             "..",
-            "data",
+            "dataset",
             f"{self.attack_method}" if self.attack_method else "perturbed",
             self.attack_configs["dataset"],
             self.attack_configs["model"],

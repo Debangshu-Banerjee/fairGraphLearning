@@ -7,7 +7,7 @@ Main dependency: python 3.8, pytorch 1.12.1, deeprobust 0.2.4
 ## Run
 To generate the poisoned graph with FATE, go to `src/` folder and run the following code:
 ```
-python fate_attack.py --dateset pokec_n --fairness statistical_parity --ptb_mode flip --ptb_rate 0.05 --attack_steps 3 --attack_seed 25 
+python fate_attack.py --dataset pokec_n --fairness statistical_parity --ptb_mode flip --ptb_rate 0.05 --attack_steps 3 --attack_seed 25 --cuda_device 0
 ```
 
 To train the victim model, go to `src/` folder and run the following code:

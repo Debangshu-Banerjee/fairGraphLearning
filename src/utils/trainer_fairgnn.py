@@ -275,7 +275,7 @@ class FairGNNTrainer:
         # load vanilla data
         file_path = os.path.join(
             "..",
-            "data",
+            "dataset",
             "clean",
             self.dataset_configs["name"],
             "{name}_{prefix_sensitive_attr}_sensitive_attr.pt".format(

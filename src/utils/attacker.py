@@ -239,12 +239,12 @@ class Attacker:
             elif self.attack_configs["fairness_definition"] == "statistical_parity":
                 output = torch.sigmoid(output)
                 loss = -self.fairness_criterion(
-                    output=output[val_idx],
-                    labels=self.labels[val_idx],
-                    sensitive_labels=self.sensitive_labels[val_idx],
+                    output[val_idx],
+                    # labels=self.labels[val_idx],
+                    self.sensitive_labels[val_idx],
                     bandwidth=self.attack_configs["bandwidth"],
                     tau=self.attack_configs["tau"],
-                    is_statistical_parity=True,
+                    # is_statistical_parity=True,
                 )
         grad_graph = torch.autograd.grad(
             loss, perturbed_graph_with_grad, create_graph=True

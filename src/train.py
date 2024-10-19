@@ -89,7 +89,7 @@ if __name__ == "__main__":
         help="which attacking method's poisoned dataset.",
         choices=["fate", "random", "dice_sensitive", "fagnn"],
     )
-    parser.add_arugment(
+    parser.add_argument(
         "--victim_model",
         type=str,
         default="gcn",
