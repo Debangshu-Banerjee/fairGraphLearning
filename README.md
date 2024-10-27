@@ -12,7 +12,7 @@ python fate_attack.py --dataset pokec_n --fairness statistical_parity --ptb_mode
 
 To train the victim model, go to `src/` folder and run the following code:
 ```
-python train.py --dateset pokec_n --fairness statistical_parity --ptb_mode flip --ptb_rate 0.05 --attack_steps 3 --attack_seed 25 --attack_method fate --victim_model gcn --hidden_dimension 128 --num_epochs 400 
+python train.py --dateset pokec_n --fairness statistical_parity --ptb_mode flip --ptb_rate 0.05 --attack_steps 3 --attack_seed 25 --attack_method fate --victim_model fairgnn --hidden_dimension 128 --num_epochs 400 
 ```
 
 To test under different settings, please feel free to refer to the detailed parameter settings listed in Appendix D.
