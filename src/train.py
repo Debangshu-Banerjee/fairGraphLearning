@@ -2,8 +2,9 @@ import argparse
 
 import torch
 
-from utils.configs import init_attack_configs, init_dataset_configs, init_train_configs
+from utils.configs import init_attack_configs, init_dataset_configs, init_train_configs, init_get_extract_configs
 from utils.trainer_fairgnn import FairGNNTrainer
+from utils.extractor_fairgnn import FairGNNExtractor
 from utils.trainer_gcn import GCNTrainer
 
 
@@ -13,6 +14,7 @@ def train(
     attack_configs,
     train_configs,
     random_seed_list,
+    extract_configs={}
 ):
     if train_configs["model"] in (
         "gcn",
@@ -44,6 +46,20 @@ def train(
             attack_method=args.attack_method,
         )
         trainer.train()
+    elif train_configs["model"] in ("fairgnnExtractor",):
+        trainer = FairGNNExtractor(
+            dataset_configs=dataset_configs,
+            train_configs=train_configs,
+            attack_configs=attack_configs,
+            extract_configs=extract_configs,
+            no_cuda=(not args.enable_cuda),
+            device=(
+                torch.device(f"cuda:{args.cuda_device}") if args.enable_cuda else "cpu"
+            ),
+            random_seed_list=random_seed_list,
+            attack_method=args.attack_method,
+        )
+        trainer.extract()
     else:
         raise ValueError(
             "Model in train_configs should be one of (gcn, gat, fairgnn, inform_gcn)!"
@@ -99,6 +115,7 @@ if __name__ == "__main__":
             "fairgnn",
             "inform_gcn",
             "gat",
+            "fairgnnExtractor",
         ],
     )
     parser.add_argument(
@@ -117,7 +134,7 @@ if __name__ == "__main__":
         "--enable_cuda", action="store_true", default=True, help="enable CUDA."
     )
     parser.add_argument(
-        "--cuda_device", type=int, default="which GPU to use.", choices=[0, 1, 2, 3]
+        "--cuda_device", type=int, default=0, choices=[0, 1, 2, 3]
     )
 
     args = parser.parse_args()
@@ -125,6 +142,7 @@ if __name__ == "__main__":
     dataset_configs = init_dataset_configs()
     attack_configs = init_attack_configs()
     train_configs = init_train_configs()
+    extract_configs = init_get_extract_configs()
 
     attack_configs["inform_similarity_measure"] = "cosine"
     train_configs["weight_decay"] = 1e-5
@@ -142,6 +160,8 @@ if __name__ == "__main__":
     train_configs["hidden_dimension"] = args.hidden_dimension
     train_configs["num_epochs"] = args.num_epochs
 
+    print(f"exp config {extract_configs}")
+
     train(
         args=args,
         dataset_configs=dataset_configs,
@@ -154,4 +174,5 @@ if __name__ == "__main__":
             42,
             100,
         ],
+        extract_configs=extract_configs
     )

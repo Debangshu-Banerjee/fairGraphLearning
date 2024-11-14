@@ -56,3 +56,7 @@ def init_train_configs():
         "inform_regularization": 0.1,
     }
     return train_configs
+
+def init_get_extract_configs():
+    extract_configs = {"warmup_num_epochs" : 10}
+    return extract_configs

@@ -2,6 +2,7 @@ import copy
 import json
 import logging
 import os
+import random
 
 import numpy as np
 import torch
@@ -23,6 +24,7 @@ class FairGNNExtractor:
         dataset_configs,
         train_configs,
         attack_configs,
+        extract_configs,
         no_cuda,
         device,
         random_seed_list,
@@ -32,6 +34,7 @@ class FairGNNExtractor:
         self.dataset_configs = dataset_configs
 
         self.train_configs = train_configs
+        self.extract_configs = extract_configs
 
         self.attack_configs = attack_configs
         self.attack_folds = self.attack_configs["num_cross_validation_folds"]
@@ -68,6 +71,7 @@ class FairGNNExtractor:
                 + sp.eye(attacked_data["adjacency_matrix"].shape[0])
             )
         ).to_dense()
+        self.num_nodes = attacked_data["num_nodes"]
         self.features = torch.FloatTensor(attacked_data["node_features"])
         self.labels = torch.LongTensor(attacked_data["labels"])
         self.sensitive_labels = torch.LongTensor(attacked_data["sensitive_labels"])
@@ -113,10 +117,8 @@ class FairGNNExtractor:
         # init evaluator
         self.evaluator = Evaluator()
 
-    def extract(
-        self, total_epochs=20
-    ):
-        for _ in range(total_epochs):
+    def extract(self, total_epochs=20):
+        for epoch in range(total_epochs):
             self._train_attacked()
             topology_budget = (
                 1
@@ -210,8 +212,11 @@ class FairGNNExtractor:
         }
         best_test = copy.deepcopy(best_val)
         # warmup training
-        for _ in range(self.train_configs["warmup_num_epochs"]):
+        for i in range(self.extract_configs["warmup_num_epochs"]):
             # train
+            rand_int = random.randint(0, len(self.random_seed_list) -1)
+            rand_seed = self.random_seed_list[rand_int]
+            self._init_params(random_seed=rand_seed)
             self.attacked_model.train()
             self.attacked_model.optimize(
                 adj=self.attacked_graph,
@@ -225,6 +230,7 @@ class FairGNNExtractor:
                 enable_update=True,
             )
             attacked_loss_train = self.attacked_model.loss_classifiers.detach()
+            print(f"iteration {i} loss: {attacked_loss_train}")
             attacked_output = self.attacked_model(self.attacked_graph, self.features)
             _ = self.evaluator.eval(
                 loss=attacked_loss_train.detach().item(),
@@ -365,7 +371,8 @@ class FairGNNExtractor:
         if not self.no_cuda:
             ones_graph = ones_graph.to(self.device)
         # perturbed graph to tensor
-        perturbed_graph = torch.FloatTensor(perturbed_adj).to(self.device)
+
+        perturbed_graph = torch.FloatTensor(perturbed_adj.cpu()).to(self.device)
 
         # get idx for unlabeled nodes
         unlabeled_idx = torch.LongTensor(
@@ -373,12 +380,20 @@ class FairGNNExtractor:
         )
 
         # prepare graph
-        original_graph_normalized = sparse_matrix_to_sparse_tensor(
-            symmetric_normalize(
-                self.original_graph + sp.eye(self.original_graph.shape[0])
-            )
-        ).to_dense()
+        # original_graph_normalized = sparse_matrix_to_sparse_tensor(
+        #     symmetric_normalize(
+        #         self.original_graph + sp.eye(self.original_graph.shape[0])
+        #     )
+        # ).to_dense()
 
+        # Convert the original graph to a SciPy sparse matrix format, if it’s not already
+        original_graph_sparse = sp.coo_matrix(self.original_graph.cpu())
+
+        # Add identity matrix (eye) to the sparse matrix
+        normalized_graph = symmetric_normalize(original_graph_sparse + sp.eye(original_graph_sparse.shape[0]))
+
+        # Convert the normalized graph to a PyTorch sparse tensor
+        original_graph_normalized = sparse_matrix_to_sparse_tensor(normalized_graph).to_dense()
         # put into cuda
         if not self.no_cuda:
             unlabeled_idx = unlabeled_idx.to(self.device)
