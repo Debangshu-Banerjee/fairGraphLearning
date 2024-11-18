@@ -71,7 +71,30 @@ class FairGNN(nn.Module):
         sensitive_output = self.estimator(adj, x)
         label_output = self.backbone(adj, x)
         label_output = self.classifier(label_output)
-        return label_output#, sensitive_output
+        return label_output#, sensitive_output  
+    
+    def optimize_mock(
+        self,
+        adj,
+        x,
+        labels,
+        sensitive_labels,
+        idx_train,
+        alpha,
+        beta,
+        retain_graph=False,
+        enable_update=True,
+        num_train_sensitive_labels=200,
+    ):
+        import pdb; pdb.set_trace()
+        node_embedding = self.backbone(adj, x)
+        label_output = self.classifier(node_embedding)
+        label_logit = torch.sigmoid(label_output)
+        adversary_output = self.adversary(node_embedding)
+        self.cls_loss = self.criterion(
+            label_output[idx_train], labels[idx_train].unsqueeze(1).float()
+        )
+        return self.cls_loss
 
     def optimize(
         self,

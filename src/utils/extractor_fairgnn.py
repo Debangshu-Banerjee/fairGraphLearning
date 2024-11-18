@@ -72,6 +72,7 @@ class FairGNNExtractor:
             )
         ).to_dense()
         self.num_nodes = attacked_data["num_nodes"]
+        self.num_edges = attacked_data["num_edges"]
         self.features = torch.FloatTensor(attacked_data["node_features"])
         self.labels = torch.LongTensor(attacked_data["labels"])
         self.sensitive_labels = torch.LongTensor(attacked_data["sensitive_labels"])
@@ -290,9 +291,22 @@ class FairGNNExtractor:
         perturbed_graph_normalized = symmetric_normalize_tensor(
             perturbed_graph + torch.eye(perturbed_graph.shape[0]).to(self.device)
         )
+        self.features.requires_grad_()
+        self.attacked_model.optimize(
+            adj=perturbed_graph_with_grad,
+            x=self.features,
+            labels=self.labels,
+            sensitive_labels=self.sensitive_labels,
+            idx_train=self.train_idx,
+            alpha=self.train_configs["fairgnn_regularization"]["alpha"],
+            beta=self.train_configs["fairgnn_regularization"]["beta"],
+            retain_graph=False,
+            enable_update=False,
+        )
 
         loss = self.attacked_model.loss_classifiers 
 
+        # import pdb; pdb.set_trace()
         # loss = torch.tensor(0.0).to(self.device)
 
         # ### pre-train model ###
@@ -352,9 +366,7 @@ class FairGNNExtractor:
         #             tau=self.attack_configs["tau"],
         #             # is_statistical_parity=True,
         #         )
-        grad_graph = torch.autograd.grad(
-            loss, perturbed_graph_with_grad, create_graph=True
-        )
+        grad_graph = torch.autograd.grad(loss, perturbed_graph_with_grad, create_graph=True)
         grad_graph = grad_graph[0].data
         graph_diff = (
             grad_graph
