@@ -213,11 +213,11 @@ class FairGNNExtractor:
         }
         best_test = copy.deepcopy(best_val)
         # warmup training
+        rand_seed = self.random_seed_list[0]
+        self._init_params(random_seed=rand_seed)
         for i in range(self.extract_configs["warmup_num_epochs"]):
             # train
-            rand_int = random.randint(0, len(self.random_seed_list) -1)
-            rand_seed = self.random_seed_list[rand_int]
-            self._init_params(random_seed=rand_seed)
+            # rand_int = random.randint(0, len(self.random_seed_list) -1)
             self.attacked_model.train()
             self.attacked_model.optimize(
                 adj=self.attacked_graph,
@@ -231,7 +231,7 @@ class FairGNNExtractor:
                 enable_update=True,
             )
             attacked_loss_train = self.attacked_model.loss_classifiers.detach()
-            print(f"iteration {i} loss: {attacked_loss_train}")
+            # print(f"iteration {i} loss: {attacked_loss_train}")
             attacked_output = self.attacked_model(self.attacked_graph, self.features)
             _ = self.evaluator.eval(
                 loss=attacked_loss_train.detach().item(),
@@ -243,33 +243,34 @@ class FairGNNExtractor:
             )
 
             # val
-            # self.attacked_model.eval()
-            # attacked_output = self.attacked_model(self.attacked_graph, self.features)
-            # attacked_loss_val = 0
+            self.attacked_model.eval()
+            attacked_output = self.attacked_model(self.attacked_graph, self.features)
+            attacked_loss_val = 0
 
-            # attacked_eval_val_result = self.evaluator.eval(
-            #     loss=attacked_loss_val,
-            #     output=attacked_output,
-            #     labels=self.labels,
-            #     sensitive_labels=self.sensitive_labels,
-            #     idx=self.val_idx,
-            #     stage="validation",
-            # )
-
+            attacked_eval_val_result = self.evaluator.eval(
+                loss=attacked_loss_val,
+                output=attacked_output,
+                labels=self.labels,
+                sensitive_labels=self.sensitive_labels,
+                idx=self.val_idx,
+                stage="validation",
+            )
+            # micro_f1 = attacked_eval_val_result["micro_f1"]
+            # print(f"micro f1 {micro_f1}")
             # # test
-            # if attacked_eval_val_result["micro_f1"] > best_val["micro_f1"]:
-            #     best_val = attacked_eval_val_result
-            #     attacked_loss_test = 0
-            #     best_test = self.evaluator.eval(
-            #         loss=attacked_loss_test,
-            #         output=attacked_output,
-            #         labels=self.labels,
-            #         sensitive_labels=self.sensitive_labels,
-            #         idx=self.test_idx,
-            #         stage="test",
-            #     )
+            if attacked_eval_val_result["micro_f1"] > best_val["micro_f1"]:
+                best_val = attacked_eval_val_result
+                attacked_loss_test = 0
+                best_test = self.evaluator.eval(
+                    loss=attacked_loss_test,
+                    output=attacked_output,
+                    labels=self.labels,
+                    sensitive_labels=self.sensitive_labels,
+                    idx=self.test_idx,
+                    stage="test",
+                )
                 # self._save_model_ckpts(self.attacked_model)
-        
+                print(f"best test {best_test}")
         ## updating the corrupted graph iteratively
 
     def _hypergradient_computation(

@@ -121,18 +121,19 @@ class FairGNNTrainer:
         for random_seed in self.random_seed_list:
             self._init_params(random_seed)
 
-            vanilla_best_eval, vanilla_best_test = self._train_vanilla()
+            # vanilla_best_eval, vanilla_best_test = self._train_vanilla()
             attacked_best_eval, attacked_best_test = self._train_attacked()
             result[random_seed] = {
-                "vanilla": {
-                    "eval": vanilla_best_eval,
-                    "test": vanilla_best_test,
-                },
+                # "vanilla": {
+                #     "eval": vanilla_best_eval,
+                #     "test": vanilla_best_test,
+                # },
                 "attacked": {
                     "eval": attacked_best_eval,
                     "test": attacked_best_test,
                 },
             }
+            break
 
         self._save_result(self._get_mean_and_std(result))
 
@@ -145,7 +146,7 @@ class FairGNNTrainer:
             "bias": 100,
         }
         best_test = copy.deepcopy(best_val)
-        for _ in range(self.train_configs["num_epochs"]):
+        for i in range(self.train_configs["num_epochs"]):
             # train
             self.vanilla_model.train()
             self.vanilla_model.optimize(
@@ -182,7 +183,8 @@ class FairGNNTrainer:
                 idx=self.val_idx,
                 stage="validation",
             )
-
+            micro_f1 = vanilla_eval_val_result["micro_f1"]
+            # print(f"iteration {i} standard micro f1 {micro_f1}")
             # test
             if vanilla_eval_val_result["micro_f1"] > best_val["micro_f1"]:
                 best_val = vanilla_eval_val_result
@@ -195,6 +197,8 @@ class FairGNNTrainer:
                     idx=self.test_idx,
                     stage="test",
                 )
+                best_val_micro = best_test["micro_f1"]
+                print(f"iteration {i} best standard micro f1 {best_val_micro}")
                 # self._save_model_ckpts(self.vanilla_model)
         return best_val, best_test
 
@@ -207,7 +211,7 @@ class FairGNNTrainer:
             "bias": 100,
         }
         best_test = copy.deepcopy(best_val)
-        for _ in range(self.train_configs["num_epochs"]):
+        for i in range(self.train_configs["num_epochs"]):
             # train
             self.attacked_model.train()
             self.attacked_model.optimize(
@@ -231,7 +235,7 @@ class FairGNNTrainer:
                 idx=self.train_idx,
                 stage="train",
             )
-
+            print(f"iteration {i} loss: {attacked_loss_train}")
             # val
             self.attacked_model.eval()
             attacked_output = self.attacked_model(self.attacked_graph, self.features)
@@ -245,6 +249,7 @@ class FairGNNTrainer:
                 idx=self.val_idx,
                 stage="validation",
             )
+            # micro_f1 = attacked_eval_val_result["micro_f1"]
 
             # test
             if attacked_eval_val_result["micro_f1"] > best_val["micro_f1"]:
@@ -258,6 +263,8 @@ class FairGNNTrainer:
                     idx=self.test_idx,
                     stage="test",
                 )
+                best_val_micro = best_test["micro_f1"]
+                print(f"iteration {i} best attacked micro f1 {best_val_micro}")
                 # self._save_model_ckpts(self.attacked_model)
         return best_val, best_test
 

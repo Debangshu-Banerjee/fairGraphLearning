@@ -49,7 +49,7 @@ def init_train_configs():
         # fairgnn
         "fairgnn_regularization": {
             "alpha": 100,
-            "beta": 1,
+            "beta": 1.0,
         },
         "dropout_attn": 0.5,
         # individual fairness
@@ -58,5 +58,5 @@ def init_train_configs():
     return train_configs
 
 def init_get_extract_configs():
-    extract_configs = {"warmup_num_epochs" : 10}
+    extract_configs = {"warmup_num_epochs" : 200}
     return extract_configs
