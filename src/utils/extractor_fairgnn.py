@@ -5,6 +5,7 @@ import os
 import random
 
 import numpy as np
+from scipy import stats
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,6 +18,24 @@ from utils.helper_functions import *
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def append_to_file(filename, content, folder="output"):
+    """
+    Appends content to a file in the specified folder. Creates the file and folder if they do not exist.
+
+    Args:
+        filename (str): Name of the file to append to.
+        content (str): Content to append to the file.
+        folder (str): The folder where the file is located or should be created. Default is 'output'.
+    """
+    # Ensure the folder exists
+    os.makedirs(folder, exist_ok=True)
+    
+    # Full path to the file
+    filepath = os.path.join(folder, filename)
+    
+    # Open the file in append mode and write content
+    with open(filepath, 'a') as file:
+        file.write(content + '\n')
 
 class FairGNNExtractor:
     def __init__(
@@ -45,8 +64,21 @@ class FairGNNExtractor:
         self.no_cuda = no_cuda
         self.device = device
 
+        self.log_filename = 'logs.txt'
         # get random seed list
         self.random_seed_list = random_seed_list
+
+    # Function to calculate 95% confidence interval
+    def confidence_interval(self, data, confidence=0.95):
+        # Convert to a NumPy array for easier computation
+        data = np.array(data)
+        # Compute the mean and standard error of the mean
+        mean = np.mean(data)
+        sem = stats.sem(data)  # Standard error of the mean
+        # Compute the margin of error
+        margin = sem * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
+        # Return the confidence interval as a tuple
+        return mean - margin, mean + margin
 
     def _init_params(self, random_seed):
         # set random seed
@@ -118,103 +150,55 @@ class FairGNNExtractor:
         # init evaluator
         self.evaluator = Evaluator()
 
-    def extract(self, total_epochs=20):
+    def update_res(self, curr_val_valid, best_val, best_val_valid, best_val_test):
+        if curr_val_valid is None:
+            return best_val_valid, best_val_test
+        if curr_val_valid["micro_f1"] <= best_val_valid["micro_f1"] + 0.05:
+            return best_val_valid, best_val_test
+        else:
+            return curr_val_valid, best_val
+ 
+
+    def extract(self, total_epochs=4):
+        print(f"total epochs {total_epochs}")
+        rand_seed = self.random_seed_list[0]
+        self._init_params(random_seed=rand_seed)
+        curr_val_valid = None
+        best_val = None
         for epoch in range(total_epochs):
-            self._train_attacked()
+            best_val_valid, best_val_test = self._train_attacked(best_val=None, epoch=epoch)
+            curr_val_valid, best_val = self.update_res( curr_val_valid, best_val, best_val_valid, best_val_test)
             topology_budget = (
                 1
                 if epoch == 0
                 else int(
-                    (int(self.attack_configs["perturbation_rate"] * self.num_edges) - 1)
-                    // 2
-                    * 2
-                    // (self.attack_configs["attack_steps"] - 1)
+                    (int(self.attack_configs["perturbation_rate"] * self.num_edges) - 1) // total_epochs
                 )
             )
-            self.graph_update(topology_budget=topology_budget)
+            # print(f"\n\n topology budget {topology_budget} \n\n")
+            self.graph_update(topology_budget=topology_budget, random_update=self.extract_configs["random_update"])
         # Final fair model training
-        self._train_attacked()
+        print(f"*** Doing the final training ***")
+        # two epochs of normal training at last 
+        best_val_valid, best_val_test = self._train_attacked(best_val=None, epoch=total_epochs)
+        curr_val_valid, best_val = self.update_res( curr_val_valid, best_val, best_val_valid, best_val_test)
+        best_val_valid, best_val_test = self._train_attacked(best_val=None, epoch=total_epochs+1)
+        curr_val_valid, best_val = self.update_res( curr_val_valid, best_val, best_val_valid, best_val_test)
+        return best_val
 
-    def _train_vanilla(self):
-        
-        
-        best_val = {
-            "micro_f1": -1.0,
-            "macro_f1": -1.0,
-            "binary_f1": -1.0,
-            "roc_auc": -1.0,
-            "bias": 100,
-        }
-
-        ## warmup training on corrupted graph
+    def _train_attacked(self, best_val, epoch):
+        if best_val is None:
+            best_val = {
+                "micro_f1": -1.0,
+                "macro_f1": -1.0,
+                "binary_f1": -1.0,
+                "roc_auc": -1.0,
+                "bias": 100,
+            }
         best_test = copy.deepcopy(best_val)
-        for _ in range(self.extract_configs["warmup_num_epochs"]):
-            # train
-            self.vanilla_model.train()
-            self.vanilla_model.optimize(
-                adj=self.original_graph,
-                x=self.features,
-                labels=self.labels,
-                sensitive_labels=self.sensitive_labels,
-                idx_train=self.train_idx,
-                alpha=self.train_configs["fairgnn_regularization"]["alpha"],
-                beta=self.train_configs["fairgnn_regularization"]["beta"],
-                retain_graph=False,
-                enable_update=True,
-            )
-            vanilla_loss_train = self.vanilla_model.loss_classifiers.detach()
-            vanilla_output = self.vanilla_model(self.original_graph, self.features)
-            _ = self.evaluator.eval(
-                loss=vanilla_loss_train.detach().item(),
-                output=vanilla_output,
-                labels=self.labels,
-                sensitive_labels=self.sensitive_labels,
-                idx=self.train_idx,
-                stage="train",
-            )
-
-            # val
-            self.vanilla_model.eval()
-            vanilla_output = self.vanilla_model(self.original_graph, self.features)
-            vanilla_loss_val = 0
-            vanilla_eval_val_result = self.evaluator.eval(
-                loss=vanilla_loss_val,
-                output=vanilla_output,
-                labels=self.labels,
-                sensitive_labels=self.sensitive_labels,
-                idx=self.val_idx,
-                stage="validation",
-            )
-
-            # test
-            if vanilla_eval_val_result["micro_f1"] > best_val["micro_f1"]:
-                best_val = vanilla_eval_val_result
-                vanilla_loss_test = 0
-                best_test = self.evaluator.eval(
-                    loss=vanilla_loss_test,
-                    output=vanilla_output,
-                    labels=self.labels,
-                    sensitive_labels=self.sensitive_labels,
-                    idx=self.test_idx,
-                    stage="test",
-                )
-                self._save_model_ckpts(self.vanilla_model)
-
-        
-        # return best_val, best_test
-
-    def _train_attacked(self):
-        best_val = {
-            "micro_f1": -1.0,
-            "macro_f1": -1.0,
-            "binary_f1": -1.0,
-            "roc_auc": -1.0,
-            "bias": 100,
-        }
-        best_test = copy.deepcopy(best_val)
+        micro_f1_list = []
+        bias_list = []
         # warmup training
-        rand_seed = self.random_seed_list[0]
-        self._init_params(random_seed=rand_seed)
         for i in range(self.extract_configs["warmup_num_epochs"]):
             # train
             # rand_int = random.randint(0, len(self.random_seed_list) -1)
@@ -258,19 +242,45 @@ class FairGNNExtractor:
             # micro_f1 = attacked_eval_val_result["micro_f1"]
             # print(f"micro f1 {micro_f1}")
             # # test
+            new_micro_f1 = attacked_eval_val_result["micro_f1"]
+            new_bias = attacked_eval_val_result["bias"]
+            new_metric = new_micro_f1 - new_bias
+            print(f"new metric {new_metric} current micro f1 {new_micro_f1} new bias {new_bias}")
+            curr_test = self.evaluator.eval(
+                        loss=0,
+                        output=attacked_output,
+                        labels=self.labels,
+                        sensitive_labels=self.sensitive_labels,
+                        idx=self.test_idx,
+                        stage="test",
+                    )
+            
+            micro_f1_list.append(curr_test["micro_f1"])
+            bias_list.append(curr_test["bias"])
             if attacked_eval_val_result["micro_f1"] > best_val["micro_f1"]:
-                best_val = attacked_eval_val_result
-                attacked_loss_test = 0
-                best_test = self.evaluator.eval(
-                    loss=attacked_loss_test,
-                    output=attacked_output,
-                    labels=self.labels,
-                    sensitive_labels=self.sensitive_labels,
-                    idx=self.test_idx,
-                    stage="test",
-                )
-                # self._save_model_ckpts(self.attacked_model)
-                print(f"best test {best_test}")
+                    imporved_metric = attacked_eval_val_result["micro_f1"] - attacked_eval_val_result["bias"]
+                    curr_metric = best_val["micro_f1"] - best_val["bias"]
+                    print(f"improved metric {imporved_metric} current metric {curr_metric}")
+                    best_val = attacked_eval_val_result
+                    attacked_loss_test = 0
+                    best_test = curr_test
+                    # self._save_model_ckpts(self.attacked_model)
+                    print(f"best test {best_test}")
+
+        l1, u1  = self.confidence_interval(micro_f1_list)
+        dataset = self.attack_configs["dataset"]
+        budget = self.attack_configs["perturbation_rate"]
+        attack_type = self.attack_configs["perturbation_mode"]
+        output = f"{dataset} {budget} {attack_type} {epoch} {l1} {u1}"
+        append_to_file("micro_f1_log.txt", output)
+
+        l1, u1  = self.confidence_interval(bias_list)
+        dataset = self.attack_configs["dataset"]
+        budget = self.attack_configs["perturbation_rate"]
+        attack_type = self.attack_configs["perturbation_mode"]
+        output = f"{dataset} {budget} {attack_type} {epoch} {l1} {u1}"
+        append_to_file("bias_log.txt", output)
+        return best_val, best_test
         ## updating the corrupted graph iteratively
 
     def _hypergradient_computation(
@@ -305,7 +315,7 @@ class FairGNNExtractor:
             enable_update=False,
         )
 
-        loss = self.attacked_model.loss_classifiers 
+        loss = self.attacked_model.loss_bias 
 
         # import pdb; pdb.set_trace()
         # loss = torch.tensor(0.0).to(self.device)
@@ -378,7 +388,8 @@ class FairGNNExtractor:
         return graph_diff
 
     
-    def graph_update(self, topology_budget):
+    def graph_update(self, topology_budget, random_update=False):
+        print(f"graph update")
         perturbed_adj = copy.deepcopy(self.attacked_graph)
         ones_graph = torch.ones(self.num_nodes, self.num_nodes)
         if not self.no_cuda:
@@ -418,6 +429,11 @@ class FairGNNExtractor:
             train_idx=self.train_idx,
             val_idx=unlabeled_idx,
         )
+        # Baseline that compute random edge edits
+        if random_update:
+            graph_delta = torch.rand(graph_delta.shape, device=graph_delta.device)
+        peturbation_mode = self.attack_configs["perturbation_mode"]
+        print(f"perturbation mode {peturbation_mode}")
 
         if self.attack_configs["perturbation_mode"] == "flip":
             pass
@@ -432,12 +448,13 @@ class FairGNNExtractor:
         idx_row, idx_column = np.unravel_index(
             idx.cpu().numpy(), perturbed_adj.shape
         )
+        print(f"attacked graph mean before {perturbed_adj.abs().mean()}")
         for i in range(len(idx_row)):
             perturbed_adj[idx_row[i], idx_column[i]] = (
                 1 - perturbed_adj[idx_row[i], idx_column[i]]
             )
         self.attacked_graph = perturbed_adj
-
+        print(f"attacked graph mean after {perturbed_adj.abs().mean()}")
 
     def train_against_data_poisoning(self):
         b = max(0,self.extract_configs["b"])

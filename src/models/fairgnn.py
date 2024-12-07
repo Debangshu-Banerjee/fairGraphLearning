@@ -145,6 +145,7 @@ class FairGNN(nn.Module):
         self.loss_classifiers = (
             self.cls_loss + alpha * self.covariance - beta * self.adv_loss
         )
+        self.loss_bias = alpha * self.covariance - beta * self.adv_loss
         # print(f"alpha {alpha} beta {beta}")
         # print(f"loss classifier components {self.cls_loss} {alpha * self.covariance} {beta * self.adv_loss}")
         if enable_update:

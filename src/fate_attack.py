@@ -74,7 +74,7 @@ if __name__ == "__main__":
         type=str,
         default="flip",
         help="flip or add edges.",
-        choices=["flip", "add"],
+        choices=["flip", "add", "delete"],
     )
     parser.add_argument(
         "--ptb_rate", type=float, default=0.05, help="perturbation rate."

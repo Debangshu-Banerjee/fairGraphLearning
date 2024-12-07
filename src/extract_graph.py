@@ -24,8 +24,8 @@ def extract_graph(
         random_seed_list=random_seed_list,
         attack_method=args.attack_method,
     )
-    trainer.extract()
-
+    best_test_val = trainer.extract()
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

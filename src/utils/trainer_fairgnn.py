@@ -134,8 +134,8 @@ class FairGNNTrainer:
                 },
             }
             break
-
-        self._save_result(self._get_mean_and_std(result))
+        return attacked_best_test
+        # self._save_result(self._get_mean_and_std(result))
 
     def _train_vanilla(self):
         best_val = {
@@ -198,7 +198,7 @@ class FairGNNTrainer:
                     stage="test",
                 )
                 best_val_micro = best_test["micro_f1"]
-                print(f"iteration {i} best standard micro f1 {best_val_micro}")
+                # print(f"iteration {i} best standard micro f1 {best_val_micro}")
                 # self._save_model_ckpts(self.vanilla_model)
         return best_val, best_test
 
@@ -235,7 +235,7 @@ class FairGNNTrainer:
                 idx=self.train_idx,
                 stage="train",
             )
-            print(f"iteration {i} loss: {attacked_loss_train}")
+            # print(f"iteration {i} loss: {attacked_loss_train}")
             # val
             self.attacked_model.eval()
             attacked_output = self.attacked_model(self.attacked_graph, self.features)
@@ -263,8 +263,8 @@ class FairGNNTrainer:
                     idx=self.test_idx,
                     stage="test",
                 )
-                best_val_micro = best_test["micro_f1"]
-                print(f"iteration {i} best attacked micro f1 {best_val_micro}")
+                # best_val_micro = best_test["micro_f1"]
+                print(f"best test {best_test}")
                 # self._save_model_ckpts(self.attacked_model)
         return best_val, best_test
 

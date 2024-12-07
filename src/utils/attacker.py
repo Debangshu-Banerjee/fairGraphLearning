@@ -136,6 +136,8 @@ class Attacker:
                 val_idx=unlabeled_idx,
             )
 
+            ptb_mode = self.attack_configs["perturbation_mode"]
+            print(f"perturbation mode {ptb_mode}")
             if self.attack_configs["perturbation_mode"] == "flip":
                 pass
             elif self.attack_configs["perturbation_mode"] == "delete":

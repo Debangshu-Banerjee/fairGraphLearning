@@ -57,6 +57,6 @@ def init_train_configs():
     }
     return train_configs
 
-def init_get_extract_configs():
-    extract_configs = {"warmup_num_epochs" : 200}
+def init_get_extract_configs(random_update = False):
+    extract_configs = {"warmup_num_epochs" : 200, "random_update": random_update}
     return extract_configs

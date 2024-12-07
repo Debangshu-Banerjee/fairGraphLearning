@@ -190,9 +190,10 @@ class GCNTrainer:
                     "test": attacked_best_test,
                 },
             }
+            break
 
         self._save_result(self._get_mean_and_std(result))
-
+        return attacked_best_test
     def _train_vanilla(self):
         best_val = {"micro_f1": -1.0}
         best_test = {"micro_f1": -1.0}
@@ -420,10 +421,9 @@ class GCNTrainer:
 
         folder_path = os.path.join(
             "..",
-            "dataset",
+            "data",
             f"{self.attack_method}" if self.attack_method else "perturbed",
             self.attack_configs["dataset"],
-            self.attack_configs["model"],
             self.attack_configs["fairness_definition"],
         )
 
@@ -434,7 +434,7 @@ class GCNTrainer:
             pass
 
         attacked_data = torch.load(os.path.join(folder_path, f"{attack_setting}.pt"))
-
+        print(f"attacked folder path {attack_setting}")
         return vanilla_data, attacked_data
 
     def _get_path(self, result_type="ckpts"):

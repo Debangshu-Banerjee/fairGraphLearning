@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import torch
 
@@ -7,6 +8,25 @@ from utils.trainer_fairgnn import FairGNNTrainer
 from utils.extractor_fairgnn import FairGNNExtractor
 from utils.trainer_gcn import GCNTrainer
 
+
+def append_to_file(filename, content, folder="output"):
+    """
+    Appends content to a file in the specified folder. Creates the file and folder if they do not exist.
+
+    Args:
+        filename (str): Name of the file to append to.
+        content (str): Content to append to the file.
+        folder (str): The folder where the file is located or should be created. Default is 'output'.
+    """
+    # Ensure the folder exists
+    os.makedirs(folder, exist_ok=True)
+    
+    # Full path to the file
+    filepath = os.path.join(folder, filename)
+    
+    # Open the file in append mode and write content
+    with open(filepath, 'a') as file:
+        file.write(content + '\n')
 
 def train(
     args,
@@ -32,7 +52,12 @@ def train(
             random_seed_list=random_seed_list,
             attack_method=args.attack_method,
         )
-        trainer.train()
+        best_val = trainer.train()
+        dataset = attack_configs["dataset"]
+        budget = attack_configs["perturbation_rate"]
+        attack_type = attack_configs["perturbation_mode"]
+        output = f"{dataset} {budget} {attack_type} {best_val}"
+        append_to_file("results_standard_baseline.txt", output)
     elif train_configs["model"] in ("fairgnn",):
         trainer = FairGNNTrainer(
             dataset_configs=dataset_configs,
@@ -45,7 +70,12 @@ def train(
             random_seed_list=random_seed_list,
             attack_method=args.attack_method,
         )
-        trainer.train()
+        best_val = trainer.train()
+        dataset = attack_configs["dataset"]
+        budget = attack_configs["perturbation_rate"]
+        attack_type = attack_configs["perturbation_mode"]
+        output = f"{dataset} {budget} {attack_type} {best_val}"
+        append_to_file("results_fair_baseline.txt", output)
     elif train_configs["model"] in ("fairgnnExtractor",):
         trainer = FairGNNExtractor(
             dataset_configs=dataset_configs,
@@ -59,7 +89,12 @@ def train(
             random_seed_list=random_seed_list,
             attack_method=args.attack_method,
         )
-        trainer.extract()
+        best_val = trainer.extract()
+        dataset = attack_configs["dataset"]
+        budget = attack_configs["perturbation_rate"]
+        attack_type = attack_configs["perturbation_mode"]
+        output = f"{dataset} {budget} {attack_type} {best_val}"
+        append_to_file("results.txt", output)
     else:
         raise ValueError(
             "Model in train_configs should be one of (gcn, gat, fairgnn, inform_gcn)!"
@@ -87,7 +122,7 @@ if __name__ == "__main__":
         type=str,
         default="flip",
         help="flip or add edges.",
-        choices=["flip", "add"],
+        choices=["flip", "add", "delete"],
     )
     parser.add_argument(
         "--ptb_rate", type=float, default=0.05, help="perturbation rate."
@@ -136,13 +171,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cuda_device", type=int, default=0, choices=[0, 1, 2, 3]
     )
+    parser.add_argument(
+        "--random_update", action="store_true", default=True, help="enable CUDA."
+    )
 
     args = parser.parse_args()
 
     dataset_configs = init_dataset_configs()
     attack_configs = init_attack_configs()
     train_configs = init_train_configs()
-    extract_configs = init_get_extract_configs()
+    extract_configs = init_get_extract_configs(random_update=args.random_update)
 
     attack_configs["inform_similarity_measure"] = "cosine"
     train_configs["weight_decay"] = 1e-5
