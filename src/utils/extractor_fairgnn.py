@@ -18,24 +18,24 @@ from utils.helper_functions import *
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def append_to_file(filename, content, folder="output"):
-    """
-    Appends content to a file in the specified folder. Creates the file and folder if they do not exist.
+# def append_to_file(filename, content, folder="output"):
+#     """
+#     Appends content to a file in the specified folder. Creates the file and folder if they do not exist.
 
-    Args:
-        filename (str): Name of the file to append to.
-        content (str): Content to append to the file.
-        folder (str): The folder where the file is located or should be created. Default is 'output'.
-    """
-    # Ensure the folder exists
-    os.makedirs(folder, exist_ok=True)
+#     Args:
+#         filename (str): Name of the file to append to.
+#         content (str): Content to append to the file.
+#         folder (str): The folder where the file is located or should be created. Default is 'output'.
+#     """
+#     # Ensure the folder exists
+#     os.makedirs(folder, exist_ok=True)
     
-    # Full path to the file
-    filepath = os.path.join(folder, filename)
+#     # Full path to the file
+#     filepath = os.path.join(folder, filename)
     
-    # Open the file in append mode and write content
-    with open(filepath, 'a') as file:
-        file.write(content + '\n')
+#     # Open the file in append mode and write content
+#     with open(filepath, 'a') as file:
+#         file.write(content + '\n')
 
 class FairGNNExtractor:
     def __init__(
@@ -160,7 +160,7 @@ class FairGNNExtractor:
  
 
     def extract(self, total_epochs=4):
-        print(f"total epochs {total_epochs}")
+        # print(f"total epochs {total_epochs}")
         rand_seed = self.random_seed_list[0]
         self._init_params(random_seed=rand_seed)
         curr_val_valid = None
@@ -178,7 +178,7 @@ class FairGNNExtractor:
             # print(f"\n\n topology budget {topology_budget} \n\n")
             self.graph_update(topology_budget=topology_budget, random_update=self.extract_configs["random_update"])
         # Final fair model training
-        print(f"*** Doing the final training ***")
+        # print(f"*** Doing the final training ***")
         # two epochs of normal training at last 
         best_val_valid, best_val_test = self._train_attacked(best_val=None, epoch=total_epochs)
         curr_val_valid, best_val = self.update_res( curr_val_valid, best_val, best_val_valid, best_val_test)
@@ -245,7 +245,7 @@ class FairGNNExtractor:
             new_micro_f1 = attacked_eval_val_result["micro_f1"]
             new_bias = attacked_eval_val_result["bias"]
             new_metric = new_micro_f1 - new_bias
-            print(f"new metric {new_metric} current micro f1 {new_micro_f1} new bias {new_bias}")
+            # print(f"new metric {new_metric} current micro f1 {new_micro_f1} new bias {new_bias}")
             curr_test = self.evaluator.eval(
                         loss=0,
                         output=attacked_output,
@@ -260,26 +260,26 @@ class FairGNNExtractor:
             if attacked_eval_val_result["micro_f1"] > best_val["micro_f1"]:
                     imporved_metric = attacked_eval_val_result["micro_f1"] - attacked_eval_val_result["bias"]
                     curr_metric = best_val["micro_f1"] - best_val["bias"]
-                    print(f"improved metric {imporved_metric} current metric {curr_metric}")
+                    # print(f"improved metric {imporved_metric} current metric {curr_metric}")
                     best_val = attacked_eval_val_result
                     attacked_loss_test = 0
                     best_test = curr_test
                     # self._save_model_ckpts(self.attacked_model)
-                    print(f"best test {best_test}")
+                    # print(f"best test {best_test}")
 
         l1, u1  = self.confidence_interval(micro_f1_list)
         dataset = self.attack_configs["dataset"]
         budget = self.attack_configs["perturbation_rate"]
         attack_type = self.attack_configs["perturbation_mode"]
         output = f"{dataset} {budget} {attack_type} {epoch} {l1} {u1}"
-        append_to_file("micro_f1_log.txt", output)
+        # append_to_file("micro_f1_log.txt", output)
 
         l1, u1  = self.confidence_interval(bias_list)
         dataset = self.attack_configs["dataset"]
         budget = self.attack_configs["perturbation_rate"]
         attack_type = self.attack_configs["perturbation_mode"]
         output = f"{dataset} {budget} {attack_type} {epoch} {l1} {u1}"
-        append_to_file("bias_log.txt", output)
+        # append_to_file("bias_log.txt", output)
         return best_val, best_test
         ## updating the corrupted graph iteratively
 
@@ -389,7 +389,7 @@ class FairGNNExtractor:
 
     
     def graph_update(self, topology_budget, random_update=False):
-        print(f"graph update")
+        # print(f"graph update")
         perturbed_adj = copy.deepcopy(self.attacked_graph)
         ones_graph = torch.ones(self.num_nodes, self.num_nodes)
         if not self.no_cuda:
@@ -433,7 +433,7 @@ class FairGNNExtractor:
         if random_update:
             graph_delta = torch.rand(graph_delta.shape, device=graph_delta.device)
         peturbation_mode = self.attack_configs["perturbation_mode"]
-        print(f"perturbation mode {peturbation_mode}")
+        # print(f"perturbation mode {peturbation_mode}")
 
         if self.attack_configs["perturbation_mode"] == "flip":
             pass
@@ -448,13 +448,13 @@ class FairGNNExtractor:
         idx_row, idx_column = np.unravel_index(
             idx.cpu().numpy(), perturbed_adj.shape
         )
-        print(f"attacked graph mean before {perturbed_adj.abs().mean()}")
+        # print(f"attacked graph mean before {perturbed_adj.abs().mean()}")
         for i in range(len(idx_row)):
             perturbed_adj[idx_row[i], idx_column[i]] = (
                 1 - perturbed_adj[idx_row[i], idx_column[i]]
             )
         self.attacked_graph = perturbed_adj
-        print(f"attacked graph mean after {perturbed_adj.abs().mean()}")
+        # print(f"attacked graph mean after {perturbed_adj.abs().mean()}")
 
     def train_against_data_poisoning(self):
         b = max(0,self.extract_configs["b"])
@@ -507,7 +507,7 @@ class FairGNNExtractor:
 
         folder_path = os.path.join(
             "..",
-            "data",
+            "attacked_data",
             f"{self.attack_method}" if self.attack_method else "perturbed",
             self.attack_configs["dataset"],
             self.attack_configs["fairness_definition"],

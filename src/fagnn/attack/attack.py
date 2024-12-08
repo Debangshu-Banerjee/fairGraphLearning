@@ -197,8 +197,7 @@ def apply_perturbation(
     if cuda:
         torch.cuda.manual_seed(seed)
 
-    device = torch.device("cuda:1" if cuda else "cpu")
-    print(f"Device {device}")
+    device = args.device
 
     idx_unlabeled = np.union1d(idx_val, idx_test)
 
@@ -316,8 +315,8 @@ def build_metaspi(
     )
     surrogate = surrogate.to(device)
     surrogate.fit(features, adj, labels, idx_train)
-    print(f"{torch.cuda.device_count()} GPUs available")
-    print("built surrogate")
+    # print(f"{torch.cuda.device_count()} GPUs available")
+    # print("built surrogate")
     model = MetaSPI(
         model=surrogate,
         nnodes=adj.shape[0],
@@ -330,7 +329,7 @@ def build_metaspi(
     )
     print("built model")
     model = model.to(device)
-    print("to device")
+    # print("to device")
     return model
 
 
@@ -366,7 +365,7 @@ def build_MetaDiscriminator(
     )
     print("built model")
     model = model.to(device)
-    print("to device")
+    # print("to device")
     return model
 
 
@@ -408,7 +407,7 @@ def build_MetaSA(
     )
     print("built model")
     model = model.to(device)
-    print("to device")
+    # print("to device")
     return model
 
 
@@ -571,7 +570,7 @@ def attack(
         "metattack": attack_metattack,
         "sacide": attack_sacide,
         "prbcd": attack_prbcd,
-        "fair_attack": attack_fair_attack,
+        "fagnn": attack_fair_attack,
     }
     # 'y1s1-DD': attack_rewirespi, 'metaspi': attack_metaspi,
     # 'MetaDiscriminator': attack_MetaDiscriminator, 'rspis': attack_rewirespi,

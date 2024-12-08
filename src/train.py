@@ -7,9 +7,18 @@ from utils.configs import init_attack_configs, init_dataset_configs, init_train_
 from utils.trainer_fairgnn import FairGNNTrainer
 from utils.extractor_fairgnn import FairGNNExtractor
 from utils.trainer_gcn import GCNTrainer
+import random
+import string
+import json
 
+def generate_random_string(length):
+    # Combine letters and digits to create a pool of characters
+    characters = string.ascii_letters + string.digits
+    # Use random.choices to generate a random string
+    random_string = ''.join(random.choices(characters, k=length))
+    return random_string
 
-def append_to_file(filename, content, folder="output"):
+def append_to_file(filename, content, folder="../output"):
     """
     Appends content to a file in the specified folder. Creates the file and folder if they do not exist.
 
@@ -20,7 +29,7 @@ def append_to_file(filename, content, folder="output"):
     """
     # Ensure the folder exists
     os.makedirs(folder, exist_ok=True)
-    
+
     # Full path to the file
     filepath = os.path.join(folder, filename)
     
@@ -36,6 +45,22 @@ def train(
     random_seed_list,
     extract_configs={}
 ):
+    folder = f"../output/training={train_configs['model']}__attackMethod={args.attack_method}/"
+    while True:
+        folder_subdir = generate_random_string(10)
+        x = os.path.join(folder,folder_subdir)
+        if not os.path.exists(x):
+            folder = x
+            os.makedirs(folder,exist_ok=True)
+            break
+    for (configs_name, configs) in [
+        ("attack_configs", attack_configs),
+        ("dataset_configs", dataset_configs),
+        ("train_configs", train_configs)
+    ]:
+        with open(os.path.join(folder,f"{configs_name}.json"), "w") as file:
+            json.dump(configs, file, indent=4)
+    
     if train_configs["model"] in (
         "gcn",
         "gat",
@@ -57,7 +82,7 @@ def train(
         budget = attack_configs["perturbation_rate"]
         attack_type = attack_configs["perturbation_mode"]
         output = f"{dataset} {budget} {attack_type} {best_val}"
-        append_to_file("results_standard_baseline.txt", output)
+        append_to_file("results_standard_baseline.txt", output, folder)
     elif train_configs["model"] in ("fairgnn",):
         trainer = FairGNNTrainer(
             dataset_configs=dataset_configs,
@@ -75,7 +100,7 @@ def train(
         budget = attack_configs["perturbation_rate"]
         attack_type = attack_configs["perturbation_mode"]
         output = f"{dataset} {budget} {attack_type} {best_val}"
-        append_to_file("results_fair_baseline.txt", output)
+        append_to_file("results_fair_baseline.txt", output, folder)
     elif train_configs["model"] in ("fairgnnExtractor",):
         trainer = FairGNNExtractor(
             dataset_configs=dataset_configs,
@@ -94,7 +119,7 @@ def train(
         budget = attack_configs["perturbation_rate"]
         attack_type = attack_configs["perturbation_mode"]
         output = f"{dataset} {budget} {attack_type} {best_val}"
-        append_to_file("results.txt", output)
+        append_to_file("results.txt", output, folder)
     else:
         raise ValueError(
             "Model in train_configs should be one of (gcn, gat, fairgnn, inform_gcn)!"

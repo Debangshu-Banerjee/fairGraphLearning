@@ -137,7 +137,7 @@ class Attacker:
             )
 
             ptb_mode = self.attack_configs["perturbation_mode"]
-            print(f"perturbation mode {ptb_mode}")
+            # print(f"perturbation mode {ptb_mode}")
             if self.attack_configs["perturbation_mode"] == "flip":
                 pass
             elif self.attack_configs["perturbation_mode"] == "delete":
@@ -317,7 +317,7 @@ class Attacker:
         )
         folder_path = os.path.join(
             "..",
-            "data",
+            "attacked_data",
             "fate",
             self.attack_configs["dataset"],
             self.attack_configs["fairness_definition"],

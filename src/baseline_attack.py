@@ -236,9 +236,10 @@ parser.add_argument(
     help="the selected FairGNN ROC score on val would be at least this high",
 )
 
+parser.add_argument("--device", type=int, default="which GPU to use.")
+
 args = parser.parse_known_args()[0]
-args.cuda = True  # not args.no_cuda and torch.cuda.is_available()
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+args.cuda = True if args.device != -1 else False
 seed_set = [25]
 
 for model_name in args.model:
@@ -314,7 +315,7 @@ for model_name in args.model:
 
             file_path = os.path.join(
                 "..",
-                "data",
+                "attacked_data",
                 attack_type,
                 dataset_name,
                 "statistical_parity",

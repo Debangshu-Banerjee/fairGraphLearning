@@ -1,0 +1,10 @@
+deeprobust
+python-louvain
+python=3.8
+torch_geometric
+pyg_lib
+torch_scatter
+torch_sparse
+torch_cluster
+torch_spline_conv
+-f https://data.pyg.org/whl/torch-2.4.1%2Bcu124.html # this configuration downloads torch 2.4.1 for resolving dependecies, hence setting this link, also this config works with our cuda 12.4 installation, might wanna change it and esure compatitbility with torch based on your cuda version

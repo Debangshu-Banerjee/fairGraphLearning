@@ -264,7 +264,7 @@ class FairGNNTrainer:
                     stage="test",
                 )
                 # best_val_micro = best_test["micro_f1"]
-                print(f"best test {best_test}")
+                # print(f"best test {best_test}")
                 # self._save_model_ckpts(self.attacked_model)
         return best_val, best_test
 
@@ -307,7 +307,7 @@ class FairGNNTrainer:
 
         folder_path = os.path.join(
             "..",
-            "data",
+            "attacked_data",
             f"{self.attack_method}" if self.attack_method else "perturbed",
             self.attack_configs["dataset"],
             self.attack_configs["fairness_definition"],

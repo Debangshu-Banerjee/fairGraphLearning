@@ -78,7 +78,7 @@ class Fair_Attack(BaseAttack):
         print(f'{sum(y1s1) / all:.2f}|{sum(y1s0) / all:.2f}\n{sum(y0s1) / all:.2f}|{sum(y0s0) / all:.2f}')
         print('-----------------------')
 
-        G = nx.from_scipy_sparse_matrix(ori_adj)
+        G = nx.from_scipy_sparse_array(ori_adj)
 
         nodes_y0s0 = [u for u in G.nodes() if y0s0[u]]
         nodes_y1s0 = [u for u in G.nodes() if y1s0[u]]
